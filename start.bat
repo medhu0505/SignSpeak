@@ -22,9 +22,7 @@ set "PYTHONPATH=."
 rem Open browser after a short delay (server starts in foreground)
 start "" cmd /c "timeout /t 2 /nobreak >nul & start http://127.0.0.1:8000"
 
-set "PYTHON=C:\Users\medhu\AppData\Local\Programs\Python\Python312\python.exe"
-if exist "%PYTHON%" (
-  "%PYTHON%" -m uvicorn main:app --host 127.0.0.1 --port 8000
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
 ) else (
   echo Python 3.12 not found at %PYTHON%
   echo Falling back to: py -3.12
