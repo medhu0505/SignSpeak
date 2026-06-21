@@ -1,10 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import {
-  getReferenceImage,
-  getLogoPath,
-  handleReferenceImageError,
-} from "@/lib/getReferenceImage";
+import { getReferenceImage } from "@/lib/getReferenceImage";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface ReferenceImageProps {
@@ -23,13 +19,17 @@ export function ReferenceImage({
   compact = false,
 }: ReferenceImageProps) {
   const [loading, setLoading] = useState(true);
-  const [showFallbackNote, setShowFallbackNote] = useState(false);
+  const [failed, setFailed] = useState(false);
   const src = getReferenceImage(letter);
 
-  const handleError = (event: React.SyntheticEvent<HTMLImageElement>) => {
-    setShowFallbackNote(true);
+  useEffect(() => {
+    setLoading(true);
+    setFailed(false);
+  }, [src]);
+
+  const handleError = () => {
+    setFailed(true);
     setLoading(false);
-    handleReferenceImageError(event.nativeEvent);
   };
 
   return (
@@ -40,28 +40,31 @@ export function ReferenceImage({
         frameClassName,
       )}
     >
-      {loading && (
+      {loading && !failed && (
         <Skeleton
           className={cn("absolute rounded-xl", compact ? "inset-2" : "inset-4")}
           aria-hidden="true"
         />
       )}
-      <img
-        src={src}
-        alt={alt ?? `ASL reference sign for letter ${letter}`}
-        loading="lazy"
-        className={cn(
-          "max-w-full max-h-full w-auto h-auto object-contain transition-opacity duration-300",
-          loading ? "opacity-0" : "opacity-100",
-          className,
-        )}
-        onLoad={() => setLoading(false)}
-        onError={handleError}
-      />
-      {showFallbackNote && src !== getLogoPath() && (
-        <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] sm:text-xs text-muted-foreground bg-card/90 border border-border px-2 py-1 rounded-md whitespace-nowrap">
-          Reference unavailable
-        </span>
+      {!failed ? (
+        <img
+          src={src}
+          alt={alt ?? `ASL reference sign for letter ${letter}`}
+          loading="lazy"
+          className={cn(
+            "max-w-full max-h-full w-auto h-auto object-contain transition-opacity duration-300",
+            loading ? "opacity-0" : "opacity-100",
+            className,
+          )}
+          onLoad={() => {
+            setLoading(false);
+          }}
+          onError={handleError}
+        />
+      ) : (
+        <p className="text-sm text-muted-foreground text-center px-4">
+          Reference image unavailable for letter {letter}
+        </p>
       )}
     </div>
   );

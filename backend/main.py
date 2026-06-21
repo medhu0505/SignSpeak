@@ -23,6 +23,16 @@ async def status():
     return {"ok": True, "model_loaded": predictor.is_loaded}
 
 
+@app.middleware("http")
+async def reference_asset_cache_control(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/assets/reference/"):
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
+
 async def _run_session(ws: WebSocket, session):
     await ws.accept()
     try:

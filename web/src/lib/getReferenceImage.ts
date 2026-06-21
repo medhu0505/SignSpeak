@@ -1,3 +1,5 @@
+import { REFERENCE_IMAGE_VERSIONS } from "@/generated/referenceImageVersions";
+
 const BASE_URL = import.meta.env.BASE_URL || "/";
 const VALID_LETTERS = /^[A-Z]$/;
 
@@ -10,12 +12,9 @@ export function getReferenceImage(letter: string): string {
   if (!VALID_LETTERS.test(normalized)) {
     return getLogoPath();
   }
-  return `${BASE_URL}assets/reference/${normalized}_test.jpg`;
-}
 
-export function handleReferenceImageError(event: Event): void {
-  const img = event.currentTarget as HTMLImageElement | null;
-  if (img) {
-    img.src = getLogoPath();
-  }
+  const version = REFERENCE_IMAGE_VERSIONS[normalized];
+  const path = `${BASE_URL}assets/reference/${normalized}_test.jpg`;
+
+  return version ? `${path}?v=${version}` : path;
 }

@@ -32,11 +32,11 @@ const Home = () => {
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center pt-2 sm:pt-4">
           <Button
             onClick={() => navigate("/interpreter")}
             size="lg"
-            className="px-8 py-6 text-lg rounded-xl neon-glow hover:scale-105 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-300"
+            className="w-full sm:w-auto px-8 py-6 text-lg rounded-xl neon-glow hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-300"
           >
             Start Interpreter
           </Button>
@@ -45,7 +45,7 @@ const Home = () => {
             onClick={() => navigate("/practice-game")}
             variant="outline"
             size="lg"
-            className="px-8 py-6 text-lg rounded-xl border-2 border-primary/30 hover:border-primary hover:neon-glow focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-300"
+            className="w-full sm:w-auto px-8 py-6 text-lg rounded-xl border-2 border-primary/30 hover:border-primary hover:neon-glow hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-300"
           >
             Practice Game
           </Button>
@@ -54,7 +54,7 @@ const Home = () => {
             onClick={() => navigate("/guide")}
             variant="outline"
             size="lg"
-            className="px-8 py-6 text-lg rounded-xl border-2 border-primary/30 hover:border-primary hover:neon-glow focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-300"
+            className="w-full sm:w-auto px-8 py-6 text-lg rounded-xl border-2 border-primary/30 hover:border-primary hover:neon-glow hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-300"
           >
             Sign Language Guide
           </Button>

@@ -123,11 +123,11 @@ All colors MUST be HSL.
   }
 
   .section-heading {
-    @apply text-lg font-semibold text-muted-foreground mb-3;
+    @apply text-lg sm:text-xl font-semibold text-foreground/80 mb-4;
   }
 
   .stat-card {
-    @apply bg-card border border-border rounded-xl p-4 sm:p-5 shadow-sm;
+    @apply bg-card border border-border rounded-xl p-4 sm:p-5 shadow-sm transition-colors duration-200 hover:border-primary/30;
   }
 
   .stat-label {
@@ -139,6 +139,10 @@ All colors MUST be HSL.
   }
 
   .panel-card {
-    @apply bg-card border border-border rounded-2xl shadow-sm;
+    @apply bg-card border border-border rounded-2xl shadow-sm transition-colors duration-200;
+  }
+
+  .info-panel {
+    @apply panel-card p-6 sm:p-8 space-y-4;
   }
 }

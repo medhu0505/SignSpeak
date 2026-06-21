@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { PageLayout } from "@/components/PageLayout";
 import { PageHeader } from "@/components/PageHeader";
-import { ReferenceImage } from "@/components/ReferenceImage";
 
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 const signDescriptions: Record<string, string> = {
@@ -32,7 +31,6 @@ const signDescriptions: Record<string, string> = {
   X: "Index finger curved like a hook",
   Y: "Thumb and pinky extended",
   Z: "Draw a Z with index finger",
-  "👍": "Thumbs up gesture",
 };
 
 const Guide = () => {
@@ -45,28 +43,34 @@ const Guide = () => {
         subtitle="Browse the ASL alphabet and jump into letter practice"
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-        {alphabet.concat("👍").map((letter) => (
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
+        {alphabet.map((letter) => (
           <article
             key={letter}
-            className="panel-card p-4 sm:p-5 hover:border-primary hover:neon-glow transition-all duration-300 space-y-3 group flex flex-col"
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate(`/practice/${letter}`)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                navigate(`/practice/${letter}`);
+              }
+            }}
+            className="panel-card p-5 sm:p-6 hover:border-primary hover:neon-glow transition-all duration-300 cursor-pointer group flex flex-col items-center text-center gap-4 min-h-[9.5rem]"
           >
-            <div className="text-center">
-              <span className="text-4xl sm:text-5xl font-bold text-primary group-hover:scale-105 transition-transform duration-300 inline-block">
-                {letter}
-              </span>
-            </div>
+            <span className="text-5xl sm:text-6xl font-bold text-primary group-hover:scale-105 transition-transform duration-300 leading-none">
+              {letter}
+            </span>
 
-            {letter.length === 1 && /[A-Z]/.test(letter) && (
-              <ReferenceImage letter={letter} compact frameClassName="min-h-[100px]" />
-            )}
-
-            <p className="text-xs text-muted-foreground text-center min-h-[2.5rem] leading-snug">
+            <p className="text-sm text-muted-foreground leading-relaxed flex-1">
               {signDescriptions[letter]}
             </p>
 
             <Button
-              onClick={() => navigate(`/practice/${letter}`)}
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/practice/${letter}`);
+              }}
               size="sm"
               className="w-full rounded-xl mt-auto focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               variant="outline"

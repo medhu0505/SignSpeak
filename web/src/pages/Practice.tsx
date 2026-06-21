@@ -54,6 +54,7 @@ const Practice = () => {
   const overlayRef = useRef<HTMLCanvasElement | null>(null);
   const wsRef = useRef<ReturnType<typeof connect> | null>(null);
   const overlayCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+  const completedRef = useRef(false);
 
   const [predSign, setPredSign] = useState<string | null>(null);
   const [predProba, setPredProba] = useState<number | null>(null);
@@ -61,8 +62,11 @@ const Practice = () => {
   const [holdProgress, setHoldProgress] = useState<number>(0);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
+    completedRef.current = false;
+    setIsComplete(false);
     let stopFrames: (() => void) | null = null;
     let stream: MediaStream | null = null;
     const video = videoRef.current;
@@ -80,18 +84,31 @@ const Practice = () => {
         overlayCtxRef.current = overlayCtxRef.current ?? setupOverlay(video, overlay);
         drawLandmarks(overlayCtxRef.current, data.landmarks as number[][] | null);
 
+        if (completedRef.current) {
+          return;
+        }
+
         const prediction = data.prediction ? String(data.prediction) : null;
         const confidence = data.confidence !== undefined ? Number(data.confidence) : 0;
         setPredSign(prediction);
         setPredProba(confidence > 0 ? confidence : null);
 
         const mode = (data.mode || {}) as Record<string, unknown>;
+
         const progress = Number(mode.hold_progress ?? 0);
         setHoldProgress(progress);
 
         const isCorrect = prediction === targetLetter && confidence > 0.6;
         if (mode.success) {
+          completedRef.current = true;
+          setIsComplete(true);
+          setHoldProgress(1);
           setFeedback("Great!");
+          ws.sendJSON({ action: "reset" });
+          toast.success("🎉 Great Job! Practice session complete.", {
+            id: "practice-session-complete",
+            duration: 5000,
+          });
         } else if (isCorrect) {
           setFeedback("Great!");
         } else if (prediction && confidence > 0.5) {
@@ -100,10 +117,6 @@ const Practice = () => {
           setFeedback("Very different");
         } else {
           setFeedback(null);
-        }
-
-        if (mode.success) {
-          toast.success(`Great job! You held the sign for ${targetLetter}.`);
         }
       },
     });
@@ -180,7 +193,7 @@ const Practice = () => {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
         <section className="space-y-4">
           <h2 className="section-heading">Reference Sign</h2>
           <ReferenceImage letter={targetLetter} frameClassName="min-h-[280px] lg:min-h-[320px]" />
@@ -216,14 +229,20 @@ const Practice = () => {
             <div className="flex justify-between items-center text-sm">
               <span className="stat-label mb-0">Hold Progress</span>
               <span className="text-muted-foreground font-mono">
-                {(holdProgress * 5).toFixed(1)} / 5.0s
+                {isComplete ? "5.0 / 5.0s" : `${(holdProgress * 5).toFixed(1)} / 5.0s`}
               </span>
             </div>
-            <Progress value={holdProgress * 100} className="h-2" aria-label="Hold progress" />
+            <Progress
+              value={isComplete ? 100 : holdProgress * 100}
+              className="h-2"
+              aria-label="Hold progress"
+            />
             <p className="text-xs sm:text-sm text-muted-foreground text-center">
-              {isConnected
-                ? "Match your hand gesture with the reference sign above."
-                : "Connecting to practice server…"}
+              {isComplete
+                ? "🎉 Great Job! Practice session complete."
+                : isConnected
+                  ? "Match your hand gesture with the reference sign above."
+                  : "Connecting to practice server…"}
             </p>
           </div>
         </section>

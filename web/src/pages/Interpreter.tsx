@@ -134,7 +134,7 @@ const Interpreter = () => {
         subtitle="Spell letters and build words in real‑time using American Sign Language (ASL)"
       />
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
         <section className="space-y-3">
           <h2 className="section-heading">Live Camera Feed</h2>
           <div className="relative aspect-video panel-card overflow-hidden border-2 border-primary shadow-md">
@@ -224,7 +224,7 @@ const Interpreter = () => {
         </section>
       </div>
 
-      <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="info-panel flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-primary/10 rounded-lg text-primary">
             <Keyboard className="w-6 h-6" aria-hidden="true" />

@@ -8,11 +8,6 @@ import { connect } from "@/lib/ws";
 import { setupOverlay, drawLandmarks } from "@/lib/overlay";
 import { PageLayout } from "@/components/PageLayout";
 import { PageHeader } from "@/components/PageHeader";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 const PracticeGame = () => {
   const navigate = useNavigate();
@@ -22,6 +17,7 @@ const PracticeGame = () => {
   const wsRef = useRef<ReturnType<typeof connect> | null>(null);
   const overlayCtxRef = useRef<CanvasRenderingContext2D | null>(null);
   const lastStatusRef = useRef<string>("playing");
+  const prevHintsUsedRef = useRef<number>(0);
 
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -37,8 +33,20 @@ const PracticeGame = () => {
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [isGameWon, setIsGameWon] = useState<boolean>(false);
   const [revealedWord, setRevealedWord] = useState<string | null>(null);
+  const [hintsUsed, setHintsUsed] = useState<number>(0);
+  const [maxHints, setMaxHints] = useState<number>(2);
 
   const wrongGuessesCount = maxLives - livesLeft;
+  const hintsRemaining = Math.max(0, maxHints - hintsUsed);
+  const hintDisabledReason = !isConnected
+    ? "Waiting for server connection"
+    : isGameOver
+      ? "Start a new game to use hints"
+      : hintsRemaining <= 0
+        ? `${maxHints} hint${maxHints === 1 ? "" : "s"} already used`
+        : null;
+  const canUseHint = hintDisabledReason === null;
+
   const maskChars = wordMask ? wordMask.split(" ") : [];
   const guessedLetters = [
     ...wrongGuesses,
@@ -51,7 +59,50 @@ const PracticeGame = () => {
     setIsGameOver(false);
     setIsGameWon(false);
     setRevealedWord(null);
+    setHintsUsed(0);
+    prevHintsUsedRef.current = 0;
     toast.info("New Hangman game started! Good luck!");
+  };
+
+  const useHint = () => {
+    if (hintDisabledReason) {
+      toast.info(hintDisabledReason);
+      return;
+    }
+    wsRef.current?.sendJSON({ action: "hint" });
+  };
+
+  const applyGameMode = (mode: Record<string, unknown>) => {
+    setWordMask(String(mode.word_mask || ""));
+    setWrongGuesses((mode.wrong_guesses as string[]) || []);
+    setLivesLeft(Number(mode.lives_left ?? 6));
+    setMaxLives(Number(mode.max_lives ?? 6));
+    const newHintsUsed = Number(mode.hints_used ?? 0);
+    setMaxHints(Number(mode.max_hints ?? 2));
+    if (newHintsUsed > prevHintsUsedRef.current) {
+      toast.info("Hint used - a letter was revealed.", { duration: 2500 });
+    }
+    prevHintsUsedRef.current = newHintsUsed;
+    setHintsUsed(newHintsUsed);
+
+    const status = String(mode.status || "playing");
+    if (status !== lastStatusRef.current) {
+      if (status === "won") {
+        setScore((prev) => prev + 1);
+        setStreak((prev) => prev + 1);
+        setIsGameOver(true);
+        setIsGameWon(true);
+        setRevealedWord(mode.word ? String(mode.word) : null);
+        toast.success(`You guessed it! The word was "${mode.word}".`, { duration: 4000 });
+      } else if (status === "lost") {
+        setStreak(0);
+        setIsGameOver(true);
+        setIsGameWon(false);
+        setRevealedWord(mode.word ? String(mode.word) : null);
+        toast.error(`Game Over! The word was "${mode.word}".`, { duration: 4000 });
+      }
+      lastStatusRef.current = status;
+    }
   };
 
   useEffect(() => {
@@ -62,8 +113,12 @@ const PracticeGame = () => {
     if (!video || !overlay) return;
 
     const ws = connect("/ws/hangman", {
-      onOpen: () => setIsConnected(true),
-      onClose: () => setIsConnected(false),
+      onOpen: () => {
+        setIsConnected(true);
+      },
+      onClose: () => {
+        setIsConnected(false);
+      },
       onError: () => setIsConnected(false),
       onMessage: (data) => {
         overlayCtxRef.current = overlayCtxRef.current ?? setupOverlay(video, overlay);
@@ -81,29 +136,7 @@ const PracticeGame = () => {
         );
 
         const mode = (data.mode || {}) as Record<string, unknown>;
-        setWordMask(String(mode.word_mask || ""));
-        setWrongGuesses((mode.wrong_guesses as string[]) || []);
-        setLivesLeft(Number(mode.lives_left ?? 6));
-        setMaxLives(Number(mode.max_lives ?? 6));
-
-        const status = String(mode.status || "playing");
-        if (status !== lastStatusRef.current) {
-          if (status === "won") {
-            setScore((prev) => prev + 1);
-            setStreak((prev) => prev + 1);
-            setIsGameOver(true);
-            setIsGameWon(true);
-            setRevealedWord(mode.word ? String(mode.word) : null);
-            toast.success(`You guessed it! The word was "${mode.word}".`, { duration: 4000 });
-          } else if (status === "lost") {
-            setStreak(0);
-            setIsGameOver(true);
-            setIsGameWon(false);
-            setRevealedWord(mode.word ? String(mode.word) : null);
-            toast.error(`Game Over! The word was "${mode.word}".`, { duration: 4000 });
-          }
-          lastStatusRef.current = status;
-        }
+        applyGameMode(mode);
       },
     });
     wsRef.current = ws;
@@ -138,7 +171,7 @@ const PracticeGame = () => {
         subtitle="Spell the secret word by showing ASL gestures to your camera"
       />
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
         <section className="panel-card p-6 flex flex-col items-center justify-center min-h-[280px]">
           <h2 className="section-heading text-center">Hangman Scaffold</h2>
 
@@ -199,7 +232,7 @@ const PracticeGame = () => {
             <div className="absolute top-4 left-4 z-40 stat-card py-2 px-3 shadow-lg bg-card/90 backdrop-blur-sm">
               <span className="stat-label mb-0 text-[10px]">Live Prediction</span>
               <span className="text-sm font-bold text-primary">
-                {predLetter ? `${predLetter} (${predProba ? (predProba * 100).toFixed(0) : 0}%)` : "—"}
+                {predLetter ? `${predLetter} (${predProba ? (predProba * 100).toFixed(0) : 0}%)` : "-"}
               </span>
             </div>
           </div>
@@ -309,45 +342,46 @@ const PracticeGame = () => {
           <RotateCcw className="w-4 h-4" aria-hidden="true" /> New Game
         </Button>
 
-        <div className="flex flex-col gap-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="w-full inline-flex">
-                <Button
-                  disabled
-                  size="lg"
-                  variant="outline"
-                  aria-describedby="hint-unavailable-msg"
-                  className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/30 text-muted-foreground cursor-not-allowed opacity-70"
-                >
-                  <HelpCircle className="w-4 h-4" aria-hidden="true" /> Hint Unavailable
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs text-center">
-              <p>The hangman server does not expose a hint API.</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Use the Sign Language Guide or guess letters from the camera feed.
-              </p>
-            </TooltipContent>
-          </Tooltip>
-          <p id="hint-unavailable-msg" className="text-xs text-center text-muted-foreground px-2">
-            Hints are not supported server-side — only <code className="text-[11px]">new_game</code> is available.
-          </p>
-        </div>
+        <Button
+          onClick={useHint}
+          disabled={!canUseHint}
+          size="lg"
+          variant="outline"
+          aria-label={
+            hintDisabledReason ??
+            (hintsRemaining > 0
+              ? `Use hint, ${hintsRemaining} remaining`
+              : "No hints remaining")
+          }
+          title={hintDisabledReason ?? undefined}
+          className="flex items-center justify-center gap-2 rounded-xl border-2 border-primary/30 hover:border-primary hover:neon-glow focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-primary/30 disabled:hover:neon-glow-none"
+        >
+          <HelpCircle className="w-4 h-4" aria-hidden="true" />
+          Hint{hintsRemaining > 0 ? ` (${hintsRemaining} left)` : ""}
+        </Button>
       </div>
 
-      <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 space-y-3">
-        <h3 className="font-semibold text-primary text-md">How to Play</h3>
-        <ul className="text-sm text-muted-foreground space-y-1.5 list-disc pl-5">
+      <p className="text-sm text-center text-muted-foreground">
+        {hintDisabledReason ??
+          (hintsRemaining > 0
+          ? `You have ${hintsRemaining} hint${hintsRemaining === 1 ? "" : "s"} this round. Each hint reveals one random letter.`
+          : "All hints used for this round.")}
+      </p>
+
+      <div className="panel-card p-6 sm:p-8 space-y-4">
+        <h3 className="text-lg font-semibold text-primary">How to Play</h3>
+        <ol className="text-sm sm:text-base text-muted-foreground space-y-3 list-decimal pl-5 leading-relaxed">
           <li>Show ASL letters with your hand gesture to the camera feed.</li>
           <li>The system detects your letters automatically when you hold the sign stable.</li>
           <li>Correct letters will fill in the blanks in the secret word.</li>
           <li>
             You can make up to <span className="font-semibold text-destructive">6 wrong guesses</span> before you lose.
           </li>
+          <li>
+            You can use up to <span className="font-semibold text-primary">2 hints</span> per round to reveal a random letter.
+          </li>
           <li>Press &quot;New Game&quot; to start a fresh round from the server word list.</li>
-        </ul>
+        </ol>
       </div>
     </PageLayout>
   );

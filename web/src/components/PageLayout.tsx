@@ -25,7 +25,7 @@ export function PageLayout({
     >
       <ThemeToggle />
       {onBack && <BackButton onClick={onBack} ariaLabel={backAriaLabel} />}
-      <div className="max-w-7xl mx-auto space-y-6">{children}</div>
+      <div className="max-w-7xl mx-auto space-y-8">{children}</div>
     </div>
   );
 }
