@@ -1,10 +1,10 @@
 import { REFERENCE_IMAGE_VERSIONS } from "@/generated/referenceImageVersions";
+import logoPath from "@/assets/logo.png";
 
-const BASE_URL = import.meta.env.BASE_URL || "/";
 const VALID_LETTERS = /^[A-Z]$/;
 
 export function getLogoPath(): string {
-  return `${BASE_URL}assets/logo.png`;
+  return logoPath;
 }
 
 export function getReferenceImage(letter: string): string {
