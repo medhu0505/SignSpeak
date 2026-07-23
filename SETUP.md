@@ -1,97 +1,70 @@
 # SignSpeak Setup & Run Instructions
 
-## ✅ Quick Start (Windows)
+All AI runs on-device — there is no server to set up.
 
-### 1. Install Python Dependencies
-```powershell
-cd backend
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-cd ..
-```
+## ✅ Quick Start (Laptop)
 
-### 2. Start the Server
+Requires **Node.js 18+** ([nodejs.org](https://nodejs.org)).
+
 ```powershell
 .\start.bat
 ```
 
-The server will:
-- Start FastAPI at `http://127.0.0.1:8000`
-- Automatically open your browser
+The script will:
+- Install dependencies on first run
+- Build the app if needed
+- Start a local server at `http://localhost:4173`
+- Open your browser automatically
 - Press `Ctrl+C` to stop
 
----
+Or try it with zero setup: **https://sign-speak-rho.vercel.app**
 
-## ✅ Frontend Setup (Optional - only if modifying UI)
+## 📱 Android
 
-### 1. Install Node Dependencies
+Install [SignSpeak-debug.apk](SignSpeak-debug.apk) on your phone (enable
+"Install unknown apps" when prompted, allow camera on first launch).
+
+To rebuild the APK (needs JDK 17+ and the Android SDK):
+
 ```powershell
 cd web
 npm install
-cd ..
-```
-
-### 2. Build Frontend
-```powershell
-cd web
 npm run build
-cd ..
+npx cap sync android
+cd android
+.\gradlew assembleDebug
+# APK appears at web/android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-This creates optimized files in `frontend/` (already done).
+## 🔧 Development Mode (Hot Reload)
 
-### 3. Development Mode (Hot Reload)
 ```powershell
 cd web
+npm install
 npm run dev:frontend
 ```
-In another terminal:
-```powershell
-cd backend
-set PYTHONPATH=.
-python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
-```
 
----
-
-## 📋 Project Structure
-
-```
-SignSpeak/
-├── backend/              # FastAPI server + AI inference
-│   ├── main.py           # WebSocket endpoints
-│   ├── models/asl.pt     # LSTM model (pre-trained)
-│   └── requirements.txt   # Python dependencies
-├── frontend/             # Built static files (served by backend)
-├── web/                  # React source (if modifying UI)
-└── start.bat            # Windows quick-start script
-```
-
----
-
-## 🎯 Features
-
-- **Live Interpreter**: Real-time ASL alphabet recognition
-- **Practice Mode**: Learn individual letters
-- **Hangman Game**: Practice with word guessing
+Open `http://localhost:8080`. Edits to `web/src/` reload instantly.
+Run `npm run build` when done to refresh the production build.
 
 ---
 
 ## 🔧 Troubleshooting
 
-**Error: "Python not found"**
-- Install Python 3.11+ from [python.org](https://www.python.org)
-- Add to PATH during installation
+**"Node.js / npm not found"**
+- Install Node.js 18+ from [nodejs.org](https://nodejs.org) and re-run `start.bat`
 
-**Error: "torch not found"**
-- Run: `pip install --extra-index-url https://download.pytorch.org/whl/cpu torch`
-
-**Port 8000 already in use**
-- Kill process: `netstat -ano | findstr :8000` then `taskkill /PID <PID>`
-- Or change port in `start.bat`: replace `--port 8000` with `--port 8001`
+**Port 4173 already in use**
+- `start.bat` detects an already-running SignSpeak and just opens the browser.
+  If some other app owns the port: `netstat -ano | findstr :4173` then `taskkill /PID <PID> /F`
 
 **Camera permission denied**
-- Allow camera access when the browser popup appears
+- Allow camera access when the browser or Android prompts. On Android:
+  Settings → Apps → SignSpeak → Permissions → Camera
+
+**Predictions feel off**
+- Good, even lighting on your hand matters most. Retrain with your own
+  samples via `trainer/` if needed (see README).
 
 ---
 
