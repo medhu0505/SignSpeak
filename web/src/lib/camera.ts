@@ -13,6 +13,50 @@ export async function startCamera(videoEl: HTMLVideoElement): Promise<MediaStrea
   return stream;
 }
 
+/**
+ * Throttled loop that hands the video element straight to the on-device
+ * detector — no intermediate canvas copy (that copy + wasm readback was a
+ * major mobile bottleneck). Training-time mirroring (cv2.flip) is reproduced
+ * in the engine by flipping landmark x after detection.
+ */
+export function startDetectLoop({
+  video,
+  fps = 30,
+  onFrame,
+  onFps,
+}: {
+  video: HTMLVideoElement;
+  fps?: number;
+  onFrame: (video: HTMLVideoElement) => void;
+  onFps?: (fps: number) => void;
+}): () => void {
+  const interval = 1000 / fps;
+  let last = 0;
+  let frames = 0;
+  let fpsTick = performance.now();
+  let running = true;
+
+  function loop(now: number) {
+    if (!running) return;
+    if (now - last >= interval && video.readyState >= 2) {
+      onFrame(video);
+      last = now;
+      frames++;
+    }
+    if (now - fpsTick >= 1000) {
+      onFps?.(frames);
+      frames = 0;
+      fpsTick = now;
+    }
+    requestAnimationFrame(loop);
+  }
+
+  requestAnimationFrame(loop);
+  return () => {
+    running = false;
+  };
+}
+
 export function startFrameLoop({
   video,
   fps = 30,

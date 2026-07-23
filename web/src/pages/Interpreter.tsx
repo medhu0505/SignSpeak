@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Wifi, WifiOff, Keyboard, Clock } from "lucide-react";
+import { Cpu, Loader2, Keyboard, Clock, Plus, Delete, CornerDownLeft } from "lucide-react";
 import { toast } from "sonner";
-import { startCamera, startFrameLoop } from "@/lib/camera";
-import { connect } from "@/lib/ws";
+import { Button } from "@/components/ui/button";
+import { startCamera, startDetectLoop } from "@/lib/camera";
+import { connect } from "@/engine/local";
 import { setupOverlay, drawLandmarks } from "@/lib/overlay";
 import { PageLayout } from "@/components/PageLayout";
 import { PageHeader } from "@/components/PageHeader";
@@ -18,6 +19,7 @@ const Interpreter = () => {
   const [wordLog, setWordLog] = useState<string[]>([]);
 
   const lastHandTimeRef = React.useRef(Date.now());
+  const lastFullTextRef = React.useRef("");
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const overlayRef = React.useRef<HTMLCanvasElement>(null);
@@ -37,7 +39,7 @@ const Interpreter = () => {
       onError: () => setIsConnected(false),
       onMessage: (data) => {
         overlayCtxRef.current = overlayCtxRef.current ?? setupOverlay(video, overlay);
-        drawLandmarks(overlayCtxRef.current, data.landmarks as number[][] | null);
+        drawLandmarks(overlayCtxRef.current, data.landmarks as number[][] | null, video);
 
         if (data.prediction) {
           setPredSign(String(data.prediction));
@@ -45,9 +47,11 @@ const Interpreter = () => {
         } else {
           setPredSign(null);
         }
+        // Integer percent: unchanged values skip the 30×/s React re-render
+        // a raw float confidence would trigger.
         setPredProba(
           data.confidence !== undefined && data.confidence !== null
-            ? Number(data.confidence)
+            ? Math.round(Number(data.confidence) * 100)
             : null,
         );
 
@@ -55,11 +59,10 @@ const Interpreter = () => {
         setCurrentWord(String(mode.current_word || ""));
 
         const fullText = String(mode.full_text || "");
-        const current = String(mode.current_word || "");
-        const combined = fullText + current;
-        if (combined.trim()) {
+        if (fullText !== lastFullTextRef.current) {
+          lastFullTextRef.current = fullText;
           const completed = fullText.trim().split(/\s+/).filter(Boolean);
-          setWordLog(completed.reverse());
+          if (completed.length) setWordLog(completed.reverse());
         }
       },
     });
@@ -68,10 +71,10 @@ const Interpreter = () => {
     (async () => {
       try {
         stream = await startCamera(video);
-        stopFrames = startFrameLoop({
+        stopFrames = startDetectLoop({
           video,
           fps: 30,
-          onFrame: (blob) => ws.sendBlob(blob),
+          onFrame: (v) => ws.sendFrame(v),
         });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
@@ -86,25 +89,35 @@ const Interpreter = () => {
     };
   }, []);
 
+  const addCurrentLetter = () => {
+    if (predSign) {
+      const letter = predSign.toUpperCase();
+      setCurrentWord((prev) => prev + letter);
+      toast.success(`Added letter: "${letter}"`);
+    }
+  };
+
+  const deleteLastLetter = () => setCurrentWord((prev) => prev.slice(0, -1));
+
+  const commitWord = () => {
+    if (currentWord.trim()) {
+      const w = currentWord.trim();
+      setWordLog((prev) => [w, ...prev]);
+      toast.success(`Completed word logged: "${w}"`);
+      setCurrentWord("");
+      wsRef.current?.sendJSON({ action: "reset" });
+    }
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space") {
         e.preventDefault();
-        if (predSign) {
-          const letter = predSign.toUpperCase();
-          setCurrentWord((prev) => prev + letter);
-          toast.success(`Added letter: "${letter}"`);
-        }
+        addCurrentLetter();
       } else if (e.code === "Backspace") {
-        setCurrentWord((prev) => prev.slice(0, -1));
+        deleteLastLetter();
       } else if (e.code === "Enter") {
-        if (currentWord.trim()) {
-          const w = currentWord.trim();
-          setWordLog((prev) => [w, ...prev]);
-          toast.success(`Completed word logged: "${w}"`);
-          setCurrentWord("");
-          wsRef.current?.sendJSON({ action: "reset" });
-        }
+        commitWord();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -159,7 +172,7 @@ const Interpreter = () => {
                 <span className="text-5xl font-bold text-primary neon-text">{predSign ?? "—"}</span>
                 {predSign && predProba !== null && (
                   <span className="text-sm text-muted-foreground ml-3">
-                    ({(predProba * 100).toFixed(0)}%)
+                    ({predProba}%)
                   </span>
                 )}
               </div>
@@ -200,24 +213,57 @@ const Interpreter = () => {
             </div>
           </div>
 
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              onClick={addCurrentLetter}
+              disabled={!predSign}
+              variant="outline"
+              size="lg"
+              className="flex items-center justify-center gap-1.5 rounded-xl border-2 border-primary/30 hover:border-primary transition-all"
+            >
+              <Plus className="w-4 h-4" aria-hidden="true" />
+              <span className="text-sm">Add</span>
+            </Button>
+            <Button
+              onClick={deleteLastLetter}
+              disabled={!currentWord}
+              variant="outline"
+              size="lg"
+              className="flex items-center justify-center gap-1.5 rounded-xl border-2 border-primary/30 hover:border-primary transition-all"
+            >
+              <Delete className="w-4 h-4" aria-hidden="true" />
+              <span className="text-sm">Delete</span>
+            </Button>
+            <Button
+              onClick={commitWord}
+              disabled={!currentWord.trim()}
+              variant="outline"
+              size="lg"
+              className="flex items-center justify-center gap-1.5 rounded-xl border-2 border-primary/30 hover:border-primary transition-all"
+            >
+              <CornerDownLeft className="w-4 h-4" aria-hidden="true" />
+              <span className="text-sm">Commit</span>
+            </Button>
+          </div>
+
           <div
             className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-center transition-all ${
               isConnected
                 ? "bg-primary/10 border-primary/30 text-primary drop-shadow-[0_0_6px_hsl(var(--primary)/0.2)]"
-                : "bg-destructive/10 border-destructive/30 text-destructive drop-shadow-[0_0_6px_hsl(var(--destructive)/0.2)]"
+                : "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400"
             }`}
             role="status"
             aria-live="polite"
           >
             {isConnected ? (
               <>
-                <Wifi className="w-4 h-4 animate-pulse" aria-hidden="true" />
-                <span className="text-sm font-semibold tracking-wide">Connected to Predict Server</span>
+                <Cpu className="w-4 h-4" aria-hidden="true" />
+                <span className="text-sm font-semibold tracking-wide">On-device AI ready — works offline</span>
               </>
             ) : (
               <>
-                <WifiOff className="w-4 h-4" aria-hidden="true" />
-                <span className="text-sm font-semibold tracking-wide">Disconnected from Predict Server</span>
+                <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                <span className="text-sm font-semibold tracking-wide">Loading on-device AI model…</span>
               </>
             )}
           </div>
@@ -231,33 +277,43 @@ const Interpreter = () => {
           </div>
           <div>
             <h3 className="font-semibold text-primary text-md">Controls</h3>
-            <p className="text-sm text-muted-foreground">Spelling rules and keyboard shortcut commands</p>
+            <p className="text-sm text-muted-foreground">How to build words with the tap buttons</p>
           </div>
         </div>
         <div className="text-sm text-muted-foreground space-y-1.5 flex-grow sm:max-w-md w-full">
           <div className="flex justify-between gap-4 border-b border-border/40 pb-1">
-            <span>
-              Press{" "}
-              <kbd className="px-1.5 py-0.5 bg-secondary border rounded text-xs font-mono">SPACE</kbd>
-            </span>
-            <span className="font-medium text-foreground shrink-0">Add Current Letter</span>
+            <span>Hold a sign steady (2s)</span>
+            <span className="font-medium text-foreground shrink-0">Auto‑adds Letter</span>
           </div>
           <div className="flex justify-between gap-4 border-b border-border/40 pb-1">
-            <span>
-              Press{" "}
-              <kbd className="px-1.5 py-0.5 bg-secondary border rounded text-xs font-mono">BACKSPACE</kbd>
+            <span className="flex items-center gap-1.5">
+              Tap{" "}
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-secondary border rounded text-xs font-semibold">
+                <Plus className="w-3 h-3" aria-hidden="true" /> Add
+              </span>
+            </span>
+            <span className="font-medium text-foreground shrink-0">Add Letter Instantly</span>
+          </div>
+          <div className="flex justify-between gap-4 border-b border-border/40 pb-1">
+            <span className="flex items-center gap-1.5">
+              Tap{" "}
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-secondary border rounded text-xs font-semibold">
+                <Delete className="w-3 h-3" aria-hidden="true" /> Delete
+              </span>
             </span>
             <span className="font-medium text-foreground shrink-0">Delete Last Letter</span>
           </div>
           <div className="flex justify-between gap-4 border-b border-border/40 pb-1">
-            <span>
-              Press{" "}
-              <kbd className="px-1.5 py-0.5 bg-secondary border rounded text-xs font-mono">ENTER</kbd>
+            <span className="flex items-center gap-1.5">
+              Tap{" "}
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-secondary border rounded text-xs font-semibold">
+                <CornerDownLeft className="w-3 h-3" aria-hidden="true" /> Commit
+              </span>
             </span>
-            <span className="font-medium text-foreground shrink-0">Manually Commit Word</span>
+            <span className="font-medium text-foreground shrink-0">Save Word to Log</span>
           </div>
           <div className="flex justify-between gap-4">
-            <span>Inactive Hand (2.5s)</span>
+            <span>Rest your hand (2.5s)</span>
             <span className="font-medium text-foreground shrink-0">Auto‑logs Current Word</span>
           </div>
         </div>

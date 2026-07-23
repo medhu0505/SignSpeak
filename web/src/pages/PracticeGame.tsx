@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { RotateCcw, HelpCircle, Trophy, TrendingUp, AlertTriangle, Wifi, WifiOff } from "lucide-react";
+import { RotateCcw, HelpCircle, Trophy, TrendingUp, AlertTriangle, Cpu, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { startCamera, startFrameLoop } from "@/lib/camera";
-import { connect } from "@/lib/ws";
+import { startCamera, startDetectLoop } from "@/lib/camera";
+import { connect } from "@/engine/local";
 import { setupOverlay, drawLandmarks } from "@/lib/overlay";
 import { PageLayout } from "@/components/PageLayout";
 import { PageHeader } from "@/components/PageHeader";
@@ -39,7 +39,7 @@ const PracticeGame = () => {
   const wrongGuessesCount = maxLives - livesLeft;
   const hintsRemaining = Math.max(0, maxHints - hintsUsed);
   const hintDisabledReason = !isConnected
-    ? "Waiting for server connection"
+    ? "AI model still loading"
     : isGameOver
       ? "Start a new game to use hints"
       : hintsRemaining <= 0
@@ -122,16 +122,17 @@ const PracticeGame = () => {
       onError: () => setIsConnected(false),
       onMessage: (data) => {
         overlayCtxRef.current = overlayCtxRef.current ?? setupOverlay(video, overlay);
-        drawLandmarks(overlayCtxRef.current, data.landmarks as number[][] | null);
+        drawLandmarks(overlayCtxRef.current, data.landmarks as number[][] | null, video);
 
         if (data.prediction) {
           setPredLetter(String(data.prediction).toUpperCase());
         } else {
           setPredLetter(null);
         }
+        // Integer percent: unchanged values skip the per-frame React re-render.
         setPredProba(
           data.confidence !== undefined && data.confidence !== null
-            ? Number(data.confidence)
+            ? Math.round(Number(data.confidence) * 100)
             : null,
         );
 
@@ -145,10 +146,10 @@ const PracticeGame = () => {
       try {
         stream = await startCamera(video);
         setCameraError(null);
-        stopFrames = startFrameLoop({
+        stopFrames = startDetectLoop({
           video,
           fps: 30,
-          onFrame: (blob) => ws.sendBlob(blob),
+          onFrame: (v) => ws.sendFrame(v),
         });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
@@ -232,7 +233,7 @@ const PracticeGame = () => {
             <div className="absolute top-4 left-4 z-40 stat-card py-2 px-3 shadow-lg bg-card/90 backdrop-blur-sm">
               <span className="stat-label mb-0 text-[10px]">Live Prediction</span>
               <span className="text-sm font-bold text-primary">
-                {predLetter ? `${predLetter} (${predProba ? (predProba * 100).toFixed(0) : 0}%)` : "-"}
+                {predLetter ? `${predLetter} (${predProba ?? 0}%)` : "-"}
               </span>
             </div>
           </div>
@@ -321,13 +322,13 @@ const PracticeGame = () => {
       >
         {isConnected ? (
           <>
-            <Wifi className="w-4 h-4 animate-pulse" aria-hidden="true" />
-            <span className="text-sm font-semibold tracking-wide">Connected to Predict Server</span>
+            <Cpu className="w-4 h-4" aria-hidden="true" />
+            <span className="text-sm font-semibold tracking-wide">On-device AI ready — works offline</span>
           </>
         ) : (
           <>
-            <WifiOff className="w-4 h-4" aria-hidden="true" />
-            <span className="text-sm font-semibold tracking-wide">Disconnected from Predict Server</span>
+            <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+            <span className="text-sm font-semibold tracking-wide">Loading on-device AI model…</span>
           </>
         )}
       </div>

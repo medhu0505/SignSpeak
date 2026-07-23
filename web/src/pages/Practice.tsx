@@ -1,8 +1,8 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { startCamera, startFrameLoop } from "@/lib/camera";
-import { connect } from "@/lib/ws";
+import { startCamera, startDetectLoop } from "@/lib/camera";
+import { connect } from "@/engine/local";
 import { setupOverlay, drawLandmarks } from "@/lib/overlay";
 import { PageLayout } from "@/components/PageLayout";
 import { PageHeader } from "@/components/PageHeader";
@@ -82,7 +82,7 @@ const Practice = () => {
       onError: () => setIsConnected(false),
       onMessage: (data) => {
         overlayCtxRef.current = overlayCtxRef.current ?? setupOverlay(video, overlay);
-        drawLandmarks(overlayCtxRef.current, data.landmarks as number[][] | null);
+        drawLandmarks(overlayCtxRef.current, data.landmarks as number[][] | null, video);
 
         if (completedRef.current) {
           return;
@@ -91,7 +91,8 @@ const Practice = () => {
         const prediction = data.prediction ? String(data.prediction) : null;
         const confidence = data.confidence !== undefined ? Number(data.confidence) : 0;
         setPredSign(prediction);
-        setPredProba(confidence > 0 ? confidence : null);
+        // Integer percent: unchanged values skip the per-frame React re-render.
+        setPredProba(confidence > 0 ? Math.round(confidence * 100) : null);
 
         const mode = (data.mode || {}) as Record<string, unknown>;
 
@@ -126,10 +127,10 @@ const Practice = () => {
       try {
         stream = await startCamera(video);
         setCameraError(null);
-        stopFrames = startFrameLoop({
+        stopFrames = startDetectLoop({
           video,
           fps: 30,
-          onFrame: (blob) => ws.sendBlob(blob),
+          onFrame: (v) => ws.sendFrame(v),
         });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
@@ -176,7 +177,7 @@ const Practice = () => {
         <div className="stat-card text-center">
           <span className="stat-label">Confidence</span>
           <span className="text-4xl sm:text-5xl font-bold text-foreground">
-            {predProba !== null ? `${(predProba * 100).toFixed(0)}%` : "—"}
+            {predProba !== null ? `${predProba}%` : "—"}
           </span>
         </div>
 
@@ -242,7 +243,7 @@ const Practice = () => {
                 ? "🎉 Great Job! Practice session complete."
                 : isConnected
                   ? "Match your hand gesture with the reference sign above."
-                  : "Connecting to practice server…"}
+                  : "Loading on-device AI model…"}
             </p>
           </div>
         </section>

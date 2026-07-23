@@ -14,7 +14,7 @@ export function getReferenceImage(letter: string): string {
   }
 
   const version = REFERENCE_IMAGE_VERSIONS[normalized];
-  const path = `${BASE_URL}assets/reference/${normalized}_test.jpg`;
+  const path = `${import.meta.env.BASE_URL}assets/reference/${normalized}_test.jpg`;
 
   return version ? `${path}?v=${version}` : path;
 }

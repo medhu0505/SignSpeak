@@ -50,7 +50,6 @@ export function ReferenceImage({
         <img
           src={src}
           alt={alt ?? `ASL reference sign for letter ${letter}`}
-          loading="lazy"
           className={cn(
             "max-w-full max-h-full w-auto h-auto object-contain transition-opacity duration-300",
             loading ? "opacity-0" : "opacity-100",

@@ -33,10 +33,20 @@ build/
 web/dist/
 .vite/
 
+# Built frontend — generated output of `npm run build` in web/ (~41 MB with
+# bundled wasm/models). start.bat rebuilds it automatically when missing.
+frontend/
+
+# Gradle / Android build caches
+.gradle/
+web/android/app/release/
+
 # Environment files
 .env
 .env.*
 
 # Intentionally tracked (do not add ignore rules for these):
-# backend/, frontend/, web/src/, web/public/, trainer/, README.md, start.bat,
-# backend/models/asl.pt, web/public/assets/reference/
+# backend/, web/src/, web/public/ (incl. models + wasm), web/android/ sources,
+# trainer/, README.md, start.bat, backend/models/asl.pt, SignSpeak-debug.apk
+# Local APK copies (canonical one is SignSpeak-debug.apk)
+SignSpeak-hopefullyfinal.apk
