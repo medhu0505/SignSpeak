@@ -60,9 +60,20 @@ const Home = () => {
           </Button>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-border/50">
+        <div className="mt-12 pt-8 border-t border-border/50 space-y-2">
           <p className="text-sm text-muted-foreground">
             Real-time gesture detection • Works 100% offline
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Made by{" "}
+            <a
+              href="https://www.linkedin.com/in/medhanshsharma05/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded transition-colors"
+            >
+              Medhansh Sharma
+            </a>
           </p>
         </div>
       </div>
