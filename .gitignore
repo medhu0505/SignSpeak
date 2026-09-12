@@ -50,3 +50,5 @@ web/android/app/release/
 # trainer/, README.md, start.bat, backend/models/asl.pt, SignSpeak-debug.apk
 # Local APK copies (canonical one is SignSpeak-debug.apk)
 SignSpeak-hopefullyfinal.apk
+
+.claude/
